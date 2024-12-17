@@ -1,0 +1,77 @@
+package com.alalmiya.scooter.presentation.packageplan
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.alalmiya.scooter.data.models.base.BaseResponse
+import com.alalmiya.scooter.data.models.packageplan.SubmitDepositRequest
+import com.alalmiya.scooter.data.models.packageplan.SubmitDepositResponse
+import com.alalmiya.scooter.data.models.wallet.WalletPackagesResponse
+import com.alalmiya.scooter.data.network.remote.NetworkResponse
+import com.alalmiya.scooter.domain.usecases.packageplan.GetPackagesUseCases
+import com.alalmiya.scooter.domain.usecases.packageplan.SubmitDepositUseCases
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
+import timber.log.Timber
+import javax.inject.Inject
+
+@HiltViewModel
+class PackageViewModel @Inject constructor(
+    private val packagesUseCases: GetPackagesUseCases,
+    private val submitDepositUseCases: SubmitDepositUseCases
+) : ViewModel() {
+
+    private val _getPackagesSharedFlow = MutableSharedFlow<WalletPackagesResponse>()
+    val getPackages = _getPackagesSharedFlow.asSharedFlow()
+
+    private val _submitDepositSharedFlow = MutableSharedFlow<SubmitDepositResponse>()
+    val submitDepositSharedFlow = _submitDepositSharedFlow.asSharedFlow()
+
+    private val _packagesError = MutableSharedFlow<NetworkResponse<Any, BaseResponse>>()
+    val packagesError = _packagesError.asSharedFlow()
+
+    private val _submitError = MutableSharedFlow<NetworkResponse<Any, BaseResponse>>()
+    val submitError = _submitError.asSharedFlow()
+
+
+    private val coroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Timber.e("ExceptionThrow", "callNetwork: ${throwable.message}")
+    }
+
+    fun setPackagesEventState(state: PackageEventState) =
+        viewModelScope.launch(coroutineExceptionHandler) {
+            when (state) {
+                is PackageEventState.GetPackages -> handlePackages()
+                is PackageEventState.SubmitDeposit -> handleSubmitDeposit(state.request)
+            }
+        }
+
+    private suspend fun handleSubmitDeposit(request: SubmitDepositRequest) {
+        submitDepositUseCases.invoke(request).collect { response ->
+            when(response){
+                is NetworkResponse.Success ->  _submitDepositSharedFlow.emit(response.body)
+                else -> _submitError.emit(response)
+            }
+        }
+    }
+
+    private suspend fun handlePackages(){
+        packagesUseCases.invoke().collect { response ->
+            when(response) {
+                is NetworkResponse.Success -> {
+                    _getPackagesSharedFlow.emit(response.body)
+                }
+                else ->{
+                    _packagesError.emit(response)
+                }
+            }
+        }
+    }
+}
+
+sealed class PackageEventState {
+    data object GetPackages : PackageEventState()
+    data class SubmitDeposit(val request: SubmitDepositRequest) : PackageEventState()
+}

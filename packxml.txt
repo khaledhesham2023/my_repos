@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:background="@color/white"
+    android:layout_height="match_parent">
+
+
+    <include
+        android:id="@+id/error_layout"
+        layout="@layout/error_empty_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
+
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/package_dialog_layout"
+        android:layout_width="@dimen/dimen_000dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/dimen_016dp"
+        android:layout_marginTop="@dimen/dimen_070dp"
+        android:layout_marginEnd="@dimen/dimen_016dp"
+        android:layout_marginBottom="@dimen/dimen_030dp"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:id="@+id/package_dialog_title"
+            android:layout_width="@dimen/dimen_000dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/title"
+                style="@style/semiBold_font"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAlignment="viewStart"
+                android:text="@string/recharge_wallet"
+                android:layout_marginBottom="@dimen/dimen_010dp"
+                android:textColor="@color/black"
+                android:textSize="@dimen/text_size_16sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                style="@style/regular_font"
+                android:layout_width="wrap_content"
+                android:textAlignment="viewStart"
+                android:layout_height="wrap_content"
+                android:text="@string/description"
+                android:textColor="@color/walletGrayDescriptions"
+                android:textSize="@dimen/text_size_14sp" />
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/close"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginBottom="@dimen/dimen_023dp"
+            android:background="@color/colorTransparent"
+            android:src="@drawable/ic_close"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/packages_layout"
+        android:layout_width="@dimen/dimen_000dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/dimen_016dp"
+
+        android:layout_marginEnd="@dimen/dimen_016dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="@dimen/dimen_030dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/package_dialog_layout">
+
+        <include
+            android:id="@+id/packages_list"
+            layout="@layout/packages_list"
+            android:visibility="visible"
+            app:layout_constraintBottom_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <include
+            android:id="@+id/error_empty_layout"
+            layout="@layout/error_empty_layout"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+    <!--    <androidx.recyclerview.widget.RecyclerView-->
+    <!--        android:layout_width="@dimen/dimen_000dp"-->
+    <!--        android:layout_height="wrap_content"-->
+    <!--        android:id="@+id/packages"-->
+    <!--        tools:listitem="@layout/recycler_package_item"-->
+    <!--        tools:itemCount="3"-->
+    <!--        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"-->
+    <!--        app:layout_constraintTop_toBottomOf="@id/package_dialog_layout"-->
+    <!--        app:layout_constraintStart_toStartOf="parent"-->
+    <!--        app:layout_constraintEnd_toEndOf="parent"-->
+    <!--        app:layout_constraintBottom_toTopOf="@id/separator"-->
+    <!--        android:layout_margin="@dimen/dimen_016dp"-->
+    <!--        />-->
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/separator"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/dimen_024dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginEnd="@dimen/dimen_016dp"
+        android:layout_marginStart="@dimen/dimen_016dp"
+        android:layout_marginTop="@dimen/dimen_033dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/packages_layout">
+
+        <View
+            android:id="@+id/left_line"
+            android:layout_width="@dimen/dimen_000dp"
+            android:layout_height="1dp"
+            android:background="@color/colorGrayDescriptions"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/or"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/or"
+            style="@style/regular_font"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="@dimen/dimen_008dp"
+            android:paddingEnd="@dimen/dimen_008dp"
+            android:text="@string/or"
+            android:textColor="@color/colorGrayDescriptions"
+            android:textSize="@dimen/text_size_16sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/right_line"
+            app:layout_constraintStart_toEndOf="@id/left_line"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <View
+            android:id="@+id/right_line"
+            android:layout_width="@dimen/dimen_000dp"
+            android:layout_height="1dp"
+            android:background="@color/colorGrayDescriptions"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/or"
+            app:layout_constraintTop_toTopOf="parent" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/wallet_amount_layout"
+        android:layout_width="@dimen/dimen_000dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/dimen_024dp"
+        android:layout_marginStart="@dimen/dimen_016dp"
+        android:layout_marginEnd="@dimen/dimen_016dp"
+        android:layout_marginTop="@dimen/dimen_024dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/separator">
+
+        <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/enter_wallet_balance"
+            style="@style/medium_font"
+            android:layout_width="@dimen/dimen_000dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/dimen_008dp"
+            android:textAlignment="viewStart"
+            android:text="@string/enter_the_wallet_charge"
+            android:textColor="@color/black"
+            android:textSize="@dimen/text_size_14sp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <androidx.appcompat.widget.AppCompatEditText
+            android:id="@+id/balance_entry_et"
+            style="@style/medium_font"
+            android:layout_width="@dimen/dimen_000dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/dimen_008dp"
+            android:background="@drawable/recharge_wallet_grey"
+            android:drawableStart="@drawable/ic_money"
+            android:drawablePadding="@dimen/dimen_016dp"
+            android:hint="@string/enter_the_wallet_charge_value"
+            android:paddingStart="@dimen/dimen_016dp"
+            android:paddingTop="@dimen/dimen_015dp"
+            android:paddingEnd="@dimen/dimen_016dp"
+            android:textAlignment="viewStart"
+            android:paddingBottom="@dimen/dimen_015dp"
+            android:textColorHint="@color/walletGrayDescriptions"
+            android:textSize="@dimen/text_size_12sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/enter_wallet_balance" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <com.alalmiya.scooter.utils.views.ProgressButton
+        android:id="@+id/next"
+        style="@style/medium_font"
+        android:layout_width="0dp"
+        android:layout_height="@dimen/dimen_056dp"
+        android:layout_margin="@dimen/dimen_016dp"
+        android:textSize="@dimen/text_size_14sp"
+        app:btnTextColor="@color/white"
+        app:isEnable="false"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/wallet_amount_layout"
+        app:layout_constraintVertical_bias="1.0"
+        app:layout_goneMarginTop="@dimen/dimen_024dp"
+        app:loadingColor="@color/white"
+        app:showLoading="false"
+        app:text="@string/next" />
+
+    <ProgressBar
+        android:id="@+id/progress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:theme="@style/Base.Theme.Scooter"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
+</androidx.constraintlayout.widget.ConstraintLayout>

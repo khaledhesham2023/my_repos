@@ -1,0 +1,400 @@
+package com.alalmiya.scooter.presentation.packageplan.screen
+
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import androidx.core.content.ContextCompat
+import androidx.core.widget.doAfterTextChanged
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
+import com.alalmiya.scooter.R
+import com.alalmiya.scooter.base.ParentFragment
+import com.alalmiya.scooter.base.delegate.emptyOrError.EmptyErrorMessageType
+import com.alalmiya.scooter.data.models.packageplan.PackageModel
+import com.alalmiya.scooter.data.models.packageplan.SubmitDepositRequest
+import com.alalmiya.scooter.data.network.remote.NetworkResponse
+import com.alalmiya.scooter.databinding.FragmentPackagesBinding
+import com.alalmiya.scooter.listeners.OnEmptyErrorBtnClicked
+import com.alalmiya.scooter.presentation.main.MainNavigationController
+import com.alalmiya.scooter.presentation.main.MainNavigatorEvent
+import com.alalmiya.scooter.presentation.packageplan.PackageEventState
+import com.alalmiya.scooter.presentation.packageplan.PackageViewModel
+import com.alalmiya.scooter.presentation.packageplan.screen.adapter.PackageAdapter
+import com.alalmiya.scooter.presentation.packageplan.screen.dialog.SuccessfulTransactionDialog
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+
+@AndroidEntryPoint
+class PackagesFragment : ParentFragment<FragmentPackagesBinding>() {
+
+    private val packageViewModel: PackageViewModel by viewModels()
+    private val mThis by lazy { this@PackagesFragment }
+    private var value: Double? = null
+    private var packageId: Int? = null
+    private var packagesList: List<PackageModel> = arrayListOf()
+    private var textWatcher: TextWatcher? = null
+    private val mContext by lazy { mThis.requireContext() }
+    private val mNavigator by lazy { MainNavigationController(findNavController()) }
+    private val successfulDialog: SuccessfulTransactionDialog by lazy { SuccessfulTransactionDialog() }
+    private val packageAdapter: PackageAdapter by lazy {
+        PackageAdapter(mContext, onPackageSelected = { packageItem ->
+            packageId = packageItem?.id
+            value = packageItem?.priceAfter
+            binding.apply {
+                if (packageItem != null) {
+                    next.setEnable(true)
+                } else {
+                    next.setEnable(false)
+                }
+            }
+            packageItem.also { item ->
+                textWatcher?.let {
+                    binding.balanceEntryEt.removeTextChangedListener(it)
+                }
+                binding.balanceEntryEt.setText(if (packageItem == null) "" else item?.priceAfter.toString())
+                textWatcher =
+                    binding.balanceEntryEt.doAfterTextChanged(textWatcherChangedListener)
+            }
+        }, notifyRecyclerView = { position ->
+            binding.packagesList.packages.post {
+                packageAdapter.notifyItemChanged(position)
+                Log.i("TAGGG", "packageId = $packageId and value is $value")
+            }
+        })
+    }
+
+    override val bindingInflater: (LayoutInflater) -> FragmentPackagesBinding
+        get() = FragmentPackagesBinding::inflate
+
+    override fun initializeComponents(view: View) {
+        binding.packagesList.packages.adapter = packageAdapter
+        hideEmptyOrErrorView(binding.errorLayout.container)
+        binding.next.setEnable(false)
+        binding.close.visibility = View.GONE
+        textWatcher = binding.balanceEntryEt.doAfterTextChanged(textWatcherChangedListener)
+        setupClicks()
+        observerAllErrors()
+        observePackages()
+        observeSubmitDeposit()
+        packageViewModel.setPackagesEventState(state = PackageEventState.GetPackages)
+    }
+
+    private val textWatcherChangedListener: (editable: Editable?) -> Unit = listener@{ editable ->
+        packageAdapter.checkAvailablePackages(editable.toString().toDoubleOrNull())?.let {
+            packageId = it.id
+            value = it.priceAfter
+            return@listener
+        }
+        if (isEnteredValid(editable.toString())) {
+            binding.next.setEnable(true)
+            packageId = null
+            value = editable.toString().toDoubleOrNull()
+        } else {
+            binding.next.setEnable(false)
+
+        }
+    }
+
+    private fun observeSubmitDeposit() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            packageViewModel.submitDepositSharedFlow.collect { _ ->
+                binding.next.setLoading(false)
+                showAndHideProgress(false)
+                successfulDialog.show(parentFragmentManager, "successful transaction")
+                mNavigator.navigate(MainNavigatorEvent.NavigateUp)
+            }
+        }
+    }
+
+    private fun observePackages() {
+        hideViews()
+        binding.packagesLayout.visibility = View.GONE
+        viewLifecycleOwner.lifecycleScope.launch {
+            packageViewModel.getPackages.collect { response ->
+                showAndHideProgress(false)
+                hideEmptyOrErrorView(binding.errorLayout.container)
+                binding.packagesLayout.visibility = View.VISIBLE
+                binding.packagesList.packages.visibility = View.VISIBLE
+                showViews()
+                textWatcher = binding.balanceEntryEt.doAfterTextChanged(textWatcherChangedListener)
+                if (response.packages.isNotEmpty()) {
+                    hideEmptyOrErrorView(binding.errorEmptyLayout.container)
+                    binding.packagesList.packages.visibility = View.VISIBLE
+                    packagesList = response.packages
+                    packageAdapter.submitList(packagesList)
+                } else {
+                    binding.packagesList.packages.visibility = View.GONE
+                    showEmptyOrErrorView(
+                        context = mContext,
+                        view = binding.errorEmptyLayout.container,
+                        type = EmptyErrorMessageType.EMPTY_LIST_VIEW.name,
+                        title = getString(R.string.no_packages),
+                        body = getString(R.string.no_packages_available_currently),
+                        icon = ContextCompat.getDrawable(mContext, R.drawable.ic_empty)
+                    )
+
+                }
+
+
+            }
+        }
+    }
+
+    private fun setupClicks() {
+        binding.apply {
+            close.setOnClickListener {
+                mNavigator.navigate(MainNavigatorEvent.NavigateUp)
+            }
+            next.setClickListener {
+                binding.next.setLoading(true)
+                packageViewModel.setPackagesEventState(
+                    PackageEventState.SubmitDeposit(
+                        SubmitDepositRequest(packageId, value)
+                    )
+                )
+            }
+        }
+    }
+
+    private fun observerAllErrors() {
+        // ERRORS OF PACKAGES HANDLING
+        viewLifecycleOwner.lifecycleScope.launchWhenCreated {
+            packageViewModel.packagesError.collect {
+                when (it) {
+                    is NetworkResponse.Loading -> {
+                        showAndHideProgress(true)
+                        hideEmptyOrErrorView(binding.errorEmptyLayout.container)
+                        hideEmptyOrErrorView(binding.errorLayout.container)
+                        binding.close.visibility = View.GONE
+                        hideViews()
+                    }
+
+                    is NetworkResponse.NetworkError -> {
+                        showAndHideProgress(false)
+                        binding.close.visibility = View.VISIBLE
+                        binding.errorLayout.container.visibility = View.VISIBLE
+                        hideViews()
+                        binding.next.setLoading(false)
+                        textWatcher?.let { tw ->
+                            binding.balanceEntryEt.removeTextChangedListener(tw)
+                        }
+                        binding.balanceEntryEt.setText("")
+                        textWatcher =
+                            binding.balanceEntryEt.doAfterTextChanged(textWatcherChangedListener)
+                        showEmptyOrErrorView(
+                            context = mContext,
+                            view = binding.errorLayout.container,
+                            type = EmptyErrorMessageType.CONNECTION_LOST_VIEW.name,
+                            showBackToHomeBtn = true,
+                            btnTitle = getString(R.string.retry),
+                            onEmptyErrorBtnClicked = object : OnEmptyErrorBtnClicked {
+                                override fun onEmptyErrorBtnClicked() {
+                                    packageViewModel.setPackagesEventState(state = PackageEventState.GetPackages)
+                                }
+                            },
+                            icon = ContextCompat.getDrawable(
+                                mContext,
+                                R.drawable.ic_network_error_2
+                            ),
+                        )
+                    }
+
+                    is NetworkResponse.ApiError -> {
+                        binding.apply {
+                            packagesList.packages.visibility = View.GONE
+                        }
+                        showViews()
+                        binding.packagesLayout.visibility = View.VISIBLE
+                        showAndHideProgress(false)
+                        showEmptyOrErrorView(
+                            context = mContext,
+                            view = binding.errorEmptyLayout.container,
+                            type = EmptyErrorMessageType.SERVER_ERROR_VIEW.name,
+                            showBackToHomeBtn = true,
+                            btnTitle = getString(R.string.retry),
+                            onEmptyErrorBtnClicked = object : OnEmptyErrorBtnClicked {
+                                override fun onEmptyErrorBtnClicked() {
+                                    packageViewModel.setPackagesEventState(state = PackageEventState.GetPackages)
+                                }
+                            },
+                            icon = ContextCompat.getDrawable(mContext, R.drawable.ic_server_error_2)
+                        )
+                    }
+
+                    else -> {
+                        showAndHideProgress(false)
+                        binding.packagesList.packages.visibility = View.GONE
+                        binding.packagesLayout.visibility = View.GONE
+                        showViews()
+                        showEmptyOrErrorView(
+                            mContext,
+                            binding.errorEmptyLayout.container,
+                            type = EmptyErrorMessageType.SERVER_ERROR_VIEW.name,
+                            showBackToHomeBtn = true,
+                            btnTitle = getString(R.string.retry),
+                            onEmptyErrorBtnClicked = object : OnEmptyErrorBtnClicked {
+                                override fun onEmptyErrorBtnClicked() {
+                                    packageViewModel.setPackagesEventState(state = PackageEventState.GetPackages)
+                                }
+                            },
+                            icon = ContextCompat.getDrawable(mContext, R.drawable.ic_server_error_2)
+                        )
+                    }
+                }
+//                CommonUtils.handleAllKindOfExceptions(requireActivity(), it) { }
+            }
+        }
+
+        // ERRORS OF SUBMIT TRANSACTIONS
+        viewLifecycleOwner.lifecycleScope.launchWhenCreated {
+            packageViewModel.submitError.collect {
+                when (it) {
+                    is NetworkResponse.Loading -> {
+                        hideEmptyOrErrorView(binding.errorEmptyLayout.container)
+                        hideEmptyOrErrorView(binding.errorLayout.container)
+                        showAndHideProgress(true)
+                        binding.close.visibility = View.GONE
+                        hideViews()
+                    }
+
+                    is NetworkResponse.NetworkError -> {
+                        binding.next.setLoading(false)
+                        showAndHideProgress(false)
+                        binding.close.visibility = View.VISIBLE
+                        binding.packagesList.packages.visibility = View.GONE
+                        binding.errorLayout.container.visibility = View.VISIBLE
+                        hideViews()
+                        binding.next.setLoading(false)
+                        showEmptyOrErrorView(
+                            context = mContext,
+                            view = binding.errorLayout.container,
+                            type = EmptyErrorMessageType.CONNECTION_LOST_VIEW.name,
+                            showBackToHomeBtn = true,
+                            btnTitle = getString(R.string.retry),
+                            onEmptyErrorBtnClicked = object : OnEmptyErrorBtnClicked {
+                                override fun onEmptyErrorBtnClicked() {
+                                    showAndHideProgress(true)
+                                    binding.close.visibility = View.GONE
+                                    hideEmptyOrErrorView(binding.errorLayout.container)
+                                    packageViewModel.setPackagesEventState(
+                                        state = PackageEventState.SubmitDeposit(
+                                            SubmitDepositRequest(packageId, value)
+                                        )
+                                    )
+                                }
+                            },
+                            icon = ContextCompat.getDrawable(
+                                mContext,
+                                R.drawable.ic_network_error_2
+                            ),
+                        )
+                    }
+
+                    is NetworkResponse.ApiError -> {
+                        binding.apply {
+                            packagesList.packages.visibility = View.GONE
+                        }
+                        hideViews()
+                        binding.next.setLoading(false)
+                        binding.close.visibility = View.VISIBLE
+                        showAndHideProgress(false)
+                        showEmptyOrErrorView(
+                            context = mContext,
+                            view = binding.errorLayout.container,
+                            type = EmptyErrorMessageType.SERVER_ERROR_VIEW.name,
+                            showBackToHomeBtn = true,
+                            btnTitle = getString(R.string.retry),
+                            onEmptyErrorBtnClicked = object : OnEmptyErrorBtnClicked {
+                                override fun onEmptyErrorBtnClicked() {
+                                    showAndHideProgress(true)
+                                    binding.close.visibility = View.GONE
+                                    hideEmptyOrErrorView(binding.errorLayout.container)
+                                    packageViewModel.setPackagesEventState(state = PackageEventState.SubmitDeposit(SubmitDepositRequest(packageId,value)))
+                                }
+                            },
+                            icon = ContextCompat.getDrawable(mContext, R.drawable.ic_server_error_2)
+                        )
+                    }
+
+                    else -> {
+                        binding.apply {
+                            packagesList.packages.visibility = View.GONE
+                        }
+                        hideViews()
+                        binding.next.setLoading(false)
+                        binding.close.visibility = View.VISIBLE
+                        showAndHideProgress(false)
+                        showEmptyOrErrorView(
+                            context = mContext,
+                            view = binding.errorLayout.container,
+                            type = EmptyErrorMessageType.SERVER_ERROR_VIEW.name,
+                            showBackToHomeBtn = true,
+                            btnTitle = getString(R.string.retry),
+                            onEmptyErrorBtnClicked = object : OnEmptyErrorBtnClicked {
+                                override fun onEmptyErrorBtnClicked() {
+                                    showAndHideProgress(true)
+                                    binding.close.visibility = View.GONE
+                                    hideEmptyOrErrorView(binding.errorLayout.container)
+                                    packageViewModel.setPackagesEventState(state = PackageEventState.SubmitDeposit(SubmitDepositRequest(packageId,value)))
+                                }
+                            },
+                            icon = ContextCompat.getDrawable(mContext, R.drawable.ic_server_error_2)
+                        )
+                    }
+                }
+//                CommonUtils.handleAllKindOfExceptions(requireActivity(), it) { }
+            }
+        }
+
+    }
+
+    private fun showAndHideProgress(b: Boolean) {
+        if (b) {
+            binding.progress.visibility = View.VISIBLE
+        } else {
+            binding.progress.visibility = View.GONE
+
+        }
+
+    }
+
+    private fun isEnteredValid(value: String): Boolean {
+        if (value.isEmpty()) {
+            return false
+        }
+        val doublePattern = "^[+-]?\\d*(\\.\\d+)?$".toRegex()
+        if (!value.matches(doublePattern)) {
+            return false
+        }
+        return try {
+            value.toDouble()
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun hideViews() {
+        binding.apply {
+            packageDialogTitle.visibility = View.INVISIBLE
+            separator.visibility = View.GONE
+            balanceEntryEt.visibility = View.GONE
+            enterWalletBalance.visibility = View.GONE
+            next.visibility = View.GONE
+        }
+    }
+
+    private fun showViews() {
+        binding.apply {
+            packageDialogTitle.visibility = View.VISIBLE
+            close.visibility = View.VISIBLE
+            separator.visibility = View.VISIBLE
+            balanceEntryEt.visibility = View.VISIBLE
+            enterWalletBalance.visibility = View.VISIBLE
+            next.visibility = View.VISIBLE
+        }
+    }
+}
